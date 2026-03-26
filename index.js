@@ -1,7 +1,7 @@
 require('dotenv').config()
 
 const { Client, GatewayIntentBits, Partials } = require('discord.js')
-const { registerCoreEvents } = require('./src/events/registerCoreEvents')
+const { registerCoreEvents } = require('./events/registerCoreEvents')
 
 const client = new Client({
   intents: [
