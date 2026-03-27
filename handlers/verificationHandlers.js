@@ -17,21 +17,14 @@ function getOrCreateSession(userId) {
     verificationSessions.set(userId, {
       basic: {
         location: '',
-        handle: '',
+        tiktokHandle: '',
         profileLink: '',
-        email: 'Not provided'
-      },
-      platforms: {
-        instagram: 'Not provided',
-        amazon: 'Not provided',
-        meta: 'Not provided',
-        youtube: 'Not provided',
-        other: 'Not provided'
+        email: '',
+        otherPlatforms: 'Not provided'
       },
       selections: {
         newsletter: '',
-        category: '',
-        creatorType: ''
+        category: ''
       }
     })
   }
@@ -60,7 +53,7 @@ async function handleSetupVerify(interaction) {
 
   console.log('STEP: /setupverify')
 
-  if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild)) {
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
     await safeReply(interaction, {
       content: 'You do not have permission to use /setupverify.',
       ephemeral: true
@@ -93,7 +86,7 @@ async function handleVerifyButton(interaction) {
   try {
     const modal = new ModalBuilder()
       .setCustomId('verify_form')
-      .setTitle('Verification Form - Step 1')
+      .setTitle('Verification Form')
 
     const locationInput = new TextInputBuilder()
       .setCustomId('location')
@@ -101,36 +94,44 @@ async function handleVerifyButton(interaction) {
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
 
-    const handleInput = new TextInputBuilder()
-      .setCustomId('handle')
-      .setLabel('Handle')
+    const tiktokHandleInput = new TextInputBuilder()
+      .setCustomId('tiktok_handle')
+      .setLabel('TikTok Handle')
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
 
     const profileLinkInput = new TextInputBuilder()
       .setCustomId('profile_link')
-      .setLabel('Profile link')
+      .setLabel('Profile Link')
       .setStyle(TextInputStyle.Short)
       .setRequired(true)
 
     const emailInput = new TextInputBuilder()
       .setCustomId('email')
-      .setLabel('Email (optional)')
+      .setLabel('Email')
       .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+
+    const otherPlatformsInput = new TextInputBuilder()
+      .setCustomId('other_platforms')
+      .setLabel('Want to share other platforms?')
+      .setStyle(TextInputStyle.Paragraph)
       .setRequired(false)
+      .setPlaceholder('Instagram:\nYouTube:')
 
     modal.addComponents(
       new ActionRowBuilder().addComponents(locationInput),
-      new ActionRowBuilder().addComponents(handleInput),
+      new ActionRowBuilder().addComponents(tiktokHandleInput),
       new ActionRowBuilder().addComponents(profileLinkInput),
-      new ActionRowBuilder().addComponents(emailInput)
+      new ActionRowBuilder().addComponents(emailInput),
+      new ActionRowBuilder().addComponents(otherPlatformsInput)
     )
 
     await interaction.showModal(modal)
   } catch (error) {
     console.error('VERIFY BUTTON ERROR:', error)
     await safeReply(interaction, {
-      content: 'The first verification modal failed to open.',
+      content: 'The verification modal failed to open.',
       ephemeral: true
     })
   }
@@ -150,127 +151,10 @@ async function handleVerifyFormSubmit(interaction) {
 
     session.basic = {
       location: interaction.fields.getTextInputValue('location').trim(),
-      handle: interaction.fields.getTextInputValue('handle').trim(),
+      tiktokHandle: interaction.fields.getTextInputValue('tiktok_handle').trim(),
       profileLink: interaction.fields.getTextInputValue('profile_link').trim(),
-      email: interaction.fields.getTextInputValue('email').trim() || 'Not provided'
-    }
-
-    verificationSessions.set(interaction.user.id, session)
-
-    const continueButton = new ButtonBuilder()
-      .setCustomId('continue_platforms')
-      .setLabel('Continue to Platforms')
-      .setStyle(ButtonStyle.Primary)
-
-    await safeReply(interaction, {
-      content: 'Step 1 saved. Click below to open the second modal.',
-      components: [new ActionRowBuilder().addComponents(continueButton)],
-      ephemeral: true
-    })
-  } catch (error) {
-    console.error('VERIFY FORM SUBMIT ERROR:', error)
-    await safeReply(interaction, {
-      content: 'Step 1 failed during submit.',
-      ephemeral: true
-    })
-  }
-
-  return true
-}
-
-async function handleContinuePlatforms(interaction) {
-  if (!interaction.isButton() || interaction.customId !== 'continue_platforms') {
-    return false
-  }
-
-  console.log('STEP: continue_platforms clicked by', interaction.user.tag)
-
-  try {
-    if (!verificationSessions.has(interaction.user.id)) {
-      await safeReply(interaction, {
-        content: 'Your verification session expired. Please click Verify and start again.',
-        ephemeral: true
-      })
-      return true
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId('platforms_form')
-      .setTitle('Platform Details - Step 2')
-
-    const instagramInput = new TextInputBuilder()
-      .setCustomId('instagram')
-      .setLabel('Instagram')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-
-    const amazonInput = new TextInputBuilder()
-      .setCustomId('amazon')
-      .setLabel('Amazon')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-
-    const metaInput = new TextInputBuilder()
-      .setCustomId('meta')
-      .setLabel('Meta')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-
-    const youtubeInput = new TextInputBuilder()
-      .setCustomId('youtube')
-      .setLabel('YouTube')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-
-    const otherInput = new TextInputBuilder()
-      .setCustomId('other')
-      .setLabel('Other platforms')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(instagramInput),
-      new ActionRowBuilder().addComponents(amazonInput),
-      new ActionRowBuilder().addComponents(metaInput),
-      new ActionRowBuilder().addComponents(youtubeInput),
-      new ActionRowBuilder().addComponents(otherInput)
-    )
-
-    await interaction.showModal(modal)
-  } catch (error) {
-    console.error('CONTINUE TO PLATFORMS ERROR:', error)
-    await safeReply(interaction, {
-      content: 'The second modal failed to open.',
-      ephemeral: true
-    })
-  }
-
-  return true
-}
-
-async function handlePlatformsFormSubmit(interaction) {
-  if (!interaction.isModalSubmit() || interaction.customId !== 'platforms_form') {
-    return false
-  }
-
-  console.log('STEP: platforms_form submitted by', interaction.user.tag)
-
-  try {
-    const session = verificationSessions.get(interaction.user.id)
-    if (!session) {
-      await safeReply(interaction, {
-        content: 'Your verification session expired. Please click Verify and start again.',
-        ephemeral: true
-      })
-      return true
-    }
-
-    session.platforms = {
-      instagram: interaction.fields.getTextInputValue('instagram').trim() || 'Not provided',
-      amazon: interaction.fields.getTextInputValue('amazon').trim() || 'Not provided',
-      meta: interaction.fields.getTextInputValue('meta').trim() || 'Not provided',
-      youtube: interaction.fields.getTextInputValue('youtube').trim() || 'Not provided',
-      other: interaction.fields.getTextInputValue('other').trim() || 'Not provided'
+      email: interaction.fields.getTextInputValue('email').trim(),
+      otherPlatforms: interaction.fields.getTextInputValue('other_platforms').trim() || 'Not provided'
     }
 
     verificationSessions.set(interaction.user.id, session)
@@ -297,34 +181,24 @@ async function handlePlatformsFormSubmit(interaction) {
         { label: 'Pet Supplies', value: 'pet' }
       )
 
-    const creatorTypeSelect = new StringSelectMenuBuilder()
-      .setCustomId('creator_type_select')
-      .setPlaceholder('Select creator type')
-      .addOptions(
-        { label: 'UGC', value: 'ugc' },
-        { label: 'TTS', value: 'tts' },
-        { label: 'Both', value: 'both' }
-      )
-
     const submitButton = new ButtonBuilder()
       .setCustomId('submit_verification')
       .setLabel('Submit Verification')
       .setStyle(ButtonStyle.Success)
 
     await safeReply(interaction, {
-      content: 'Step 3: make all dropdown selections, then click Submit Verification.',
+      content: 'Step 2: make all dropdown selections, then click Submit Verification.',
       components: [
         new ActionRowBuilder().addComponents(newsletterSelect),
         new ActionRowBuilder().addComponents(categorySelect),
-        new ActionRowBuilder().addComponents(creatorTypeSelect),
         new ActionRowBuilder().addComponents(submitButton)
       ],
       ephemeral: true
     })
   } catch (error) {
-    console.error('PLATFORMS FORM SUBMIT ERROR:', error)
+    console.error('VERIFY FORM SUBMIT ERROR:', error)
     await safeReply(interaction, {
-      content: 'Step 2 failed during submit.',
+      content: 'Step 1 failed during submit.',
       ephemeral: true
     })
   }
@@ -351,8 +225,6 @@ async function handleSelectMenus(interaction) {
       session.selections.newsletter = interaction.values[0]
     } else if (interaction.customId === 'category_select') {
       session.selections.category = interaction.values[0]
-    } else if (interaction.customId === 'creator_type_select') {
-      session.selections.creatorType = interaction.values[0]
     } else {
       return false
     }
@@ -390,7 +262,7 @@ async function handleSubmitVerification(interaction) {
 
     console.log('SESSION DATA:', JSON.stringify(session, null, 2))
 
-    if (!session.selections.newsletter || !session.selections.category || !session.selections.creatorType) {
+    if (!session.selections.newsletter || !session.selections.category) {
       await interaction.editReply({
         content: 'Please complete all dropdown selections before submitting.'
       })
@@ -406,13 +278,6 @@ async function handleSubmitVerification(interaction) {
       await member.roles.remove(allCategoryRoles, 'Reset category roles before verification')
     }
 
-    const creatorRolesToReset = [process.env.ROLE_UGC, process.env.ROLE_CREATOR].filter(Boolean)
-    console.log('CREATOR ROLES TO RESET:', creatorRolesToReset)
-
-    if (creatorRolesToReset.length > 0) {
-      await member.roles.remove(creatorRolesToReset, 'Reset creator roles before verification')
-    }
-
     if (process.env.ROLE_NEW) {
       console.log('REMOVING ROLE_NEW:', process.env.ROLE_NEW)
       await member.roles.remove(process.env.ROLE_NEW, 'Completed verification')
@@ -423,30 +288,12 @@ async function handleSubmitVerification(interaction) {
 
     if (!selectedCategoryRole) {
       await interaction.editReply({
-        content: `No role is mapped for category: ${session.selections.category}. Check your .env file.`
+        content: `No role is mapped for category: ${session.selections.category}. Check your category map or .env file.`
       })
       return true
     }
 
     await member.roles.add(selectedCategoryRole, 'Selected category during verification')
-
-    const creatorRolesToAdd = []
-    if (session.selections.creatorType === 'ugc' && process.env.ROLE_UGC) {
-      creatorRolesToAdd.push(process.env.ROLE_UGC)
-    }
-    if (session.selections.creatorType === 'tts' && process.env.ROLE_CREATOR) {
-      creatorRolesToAdd.push(process.env.ROLE_CREATOR)
-    }
-    if (session.selections.creatorType === 'both') {
-      if (process.env.ROLE_UGC) creatorRolesToAdd.push(process.env.ROLE_UGC)
-      if (process.env.ROLE_CREATOR) creatorRolesToAdd.push(process.env.ROLE_CREATOR)
-    }
-
-    console.log('CREATOR ROLES TO ADD:', creatorRolesToAdd)
-
-    if (creatorRolesToAdd.length > 0) {
-      await member.roles.add(creatorRolesToAdd, 'Selected creator type during verification')
-    }
 
     if (process.env.LOG_CHANNEL_ID) {
       const logChannel = await interaction.guild.channels.fetch(process.env.LOG_CHANNEL_ID).catch(() => null)
@@ -457,17 +304,12 @@ async function handleSubmitVerification(interaction) {
           '**New verification submitted**',
           `User: <@${interaction.user.id}>`,
           `Location: ${session.basic.location}`,
-          `Handle: ${session.basic.handle}`,
+          `TikTok Handle: ${session.basic.tiktokHandle}`,
           `Profile Link: ${session.basic.profileLink}`,
           `Email: ${session.basic.email}`,
-          `Instagram: ${session.platforms.instagram}`,
-          `Amazon: ${session.platforms.amazon}`,
-          `Meta: ${session.platforms.meta}`,
-          `YouTube: ${session.platforms.youtube}`,
-          `Other Platforms: ${session.platforms.other}`,
+          `Other Platforms: ${session.basic.otherPlatforms}`,
           `Newsletter: ${session.selections.newsletter}`,
-          `Category: ${session.selections.category}`,
-          `Creator Type: ${session.selections.creatorType}`
+          `Category: ${session.selections.category}`
         ].join('\n'))
       }
     }
@@ -500,8 +342,6 @@ async function handleVerificationInteractions(interaction) {
     (await handleSetupVerify(interaction)) ||
     (await handleVerifyButton(interaction)) ||
     (await handleVerifyFormSubmit(interaction)) ||
-    (await handleContinuePlatforms(interaction)) ||
-    (await handlePlatformsFormSubmit(interaction)) ||
     (await handleSelectMenus(interaction)) ||
     (await handleSubmitVerification(interaction))
   )
